@@ -1,0 +1,62 @@
+stages:
+  - checks
+
+.node-template: &node-template
+  image: node:12-alpine
+  before_script:
+    - apk add -q --no-cache git
+  except:
+    - master
+    - tags
+
+format_ts:
+  <<: *node-template
+  stage: checks
+  script:
+    - cd typescript-node
+    - npm ci
+    - npm run ci:prettier
+
+lint_ts:
+  <<: *node-template
+  stage: checks
+  script:
+    - cd typescript-node
+    - npm ci
+    - npm run ci:lint
+
+check_types_ts:
+  <<: *node-template
+  stage: checks
+  script:
+    - cd typescript-node
+    - npm ci
+    - npm run ci:type-check
+
+  
+flake8:
+  image: python:3.7
+  stage: checks
+  script:
+  - cd python_client
+  - pip install -r requirements.txt
+  - flake8 --max-line-length=120 examples/*.py
+  - flake8 --max-line-length=120 src/*.py
+  
+pylint:
+  image: python:3.7
+  stage: checks
+  allow_failure: true
+  script:
+  - cd python_client
+  - pip install -r requirements.txt
+  - cd examples
+  - pylint private.py
+  - pylint public.py
+  - cd ../src
+  - pylint globe.py
+  
+  
+  except:
+    - master
+    - tags

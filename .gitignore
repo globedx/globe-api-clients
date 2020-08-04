@@ -1,0 +1,15 @@
+# Typescript
+node_modules
+/.log
+
+# IDE
+.idea/
+.history
+*.code-workspace
+.vscode
+/tests.http
+*.pyc
+
+# macOS
+.DS_Store
+*.swp
