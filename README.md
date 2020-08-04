@@ -19,7 +19,7 @@ See the docuementation for the [Globe API here](https://developers.globedx.com/e
 
 **Important**
 
-For private requests, and to use the private examples for trading and other authenticated requests you will need to first create an API key in your account, for this you will need to [register for an account on Glone](https://globedx.org/en/register).
+For private requests, and to use the private examples for trading and other authenticated requests you will need to first create an API key in your account, for this you will need to [register for an account on Glone](https://globedx.com/en/register).
 
 ## Contributing
 We warmly welcome all contributions, either in your preferred language that doesn't have a client library yet, or if you have suggestions on how to improve the API, features you want to see or if your language is not supported yet, please do leave an issue and we will prioritise the work.
