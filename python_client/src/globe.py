@@ -7,28 +7,31 @@ import hmac
 import hashlib
 import base64
 import websockets
+import aiohttp
 
 
 class Globe:
     """
-    Globe class contains all the relevant WebSocket API commands.
+    Globe class contains all of Globes WebSocket WS channel subscriptions
     """
 
     def __init__(self, error_handler=None):
         self.uri = "wss://globedx.com/api/v1/ws"
         self.socket = websockets
+        self.http_api = "http://www.globedx.com/api/v1"
         self.error_handler = error_handler
         self.received_handlers = {}
+        self.session = aiohttp.ClientSession()
 
     async def _send(self, message):
         """
-        Sends the request to the webserver
+        Send the subscription channel request to the server.
         """
         await self.socket.send(json.dumps(message))
 
     async def run_loop(self):
         """
-        Listens for the response from the webserver.
+        Continually listen and process any responses on the websocket from the server.
         """
         while True:
             received = await self.socket.recv()
@@ -48,16 +51,17 @@ class Globe:
 
     async def get_depth(self, instrument, handler=None):
         """
-        Gets the market depth.
+        Subscribe to the the market depth (l2 orderbook) with a given handler, for an instrument.
         """
         if handler:
             self.received_handlers["depth"] = handler
-        message = {"command": "subscribe", "channel": "depth", "instrument": instrument}
+        message = {"command": "subscribe",
+                   "channel": "depth", "instrument": instrument}
         await self._send(message)
 
     async def get_product_list(self, handler=None):
         """
-        Gets the product list.
+        Get the product list with a given handler
         """
         if handler is not None:
             self.received_handlers["product-list"] = handler
@@ -66,7 +70,7 @@ class Globe:
 
     async def get_index_price(self, instrument, handler=None):
         """
-        Gets the current index price.
+        Subscribe to the index price with a given handler, for an instrument.
         """
         if handler is not None:
             self.received_handlers["index-price"] = handler
@@ -79,7 +83,7 @@ class Globe:
 
     async def get_product_detail(self, instrument, handler=None):
         """
-        Gets the product detail.
+        Get the product detail with a given handler, for an instrument.
         """
         if handler:
             self.received_handlers["product-detail"] = handler
@@ -92,7 +96,7 @@ class Globe:
 
     async def get_recent_trades(self, instrument, handler=None):
         """
-        Shows the recent trades.
+        Subscribe to recent trades with a given handler, for an instrument.
         """
         if handler:
             self.received_handlers["trades"] = handler
@@ -105,7 +109,7 @@ class Globe:
 
     async def get_market_overview(self, instrument, handler=None):
         """
-        Shows the market overview.
+        Get the market overview with a given handler, for an instrument.
         """
         if handler:
             self.received_handlers["market-overview"] = handler
@@ -118,7 +122,7 @@ class Globe:
 
     async def get_open_interest(self, instrument, handler=None):
         """
-        Gets the open interest.
+        Gets the open interest with a given handler, for an instrument.
         """
         if handler:
             self.received_handlers["open-interest"] = handler
@@ -131,16 +135,20 @@ class Globe:
 
     async def get_insurance_fund(self, instrument, handler=None):
         """
-        Gets the insurance funds.
+        Get the insurance fund, with a given handler, for an instrument.
         """
         if handler:
             self.received_handlers["insurance-fund"] = handler
-        message = {"command": "subscribe", "channel": "insurance-fund", "instrument": instrument}
+        message = {
+            "command": "subscribe",
+            "channel": "insurance-fund",
+            "instrument": instrument,
+        }
         await self._send(message)
 
     async def get_my_account_overview(self, handler=None):
         """
-        Shows your account overview.
+        Get your account overview, with a given handler.
         """
         if handler:
             self.received_handlers["my-account-overview"] = handler
@@ -149,7 +157,7 @@ class Globe:
 
     async def get_my_market_events(self, instrument, handler=None):
         """
-        Shows your market events.
+        Subscribe to your market events, with a given handler.
         """
         if handler:
             self.received_handlers["my-market-events"] = handler
@@ -162,14 +170,15 @@ class Globe:
 
     async def cancel_order(self, _id, instrument):
         """
-        Cancel your order.
+        Submit an order cancellation, with a given order id and instrument.
         """
-        message = {"command": "cancel-order", "instrument": instrument, "order_id": _id}
+        message = {"command": "cancel-order",
+                   "instrument": instrument, "order_id": _id}
         await self._send(message)
 
     async def my_open_orders(self, instrument, handler=None):
         """
-        Shows your open orders.
+        Get your open orders, with a given handler, for an instrument.
         """
         if handler:
             self.received_handlers["my-orders"] = handler
@@ -178,12 +187,11 @@ class Globe:
             "channel": "my-orders",
             "instrument": instrument,
         }
-
         await self._send(message)
 
     async def my_positions(self, handler=None):
         """
-        Shows your positions.
+        Get your positions, with a given handler.
         """
         if handler:
             self.received_handlers["my-positions"] = handler
@@ -192,21 +200,51 @@ class Globe:
 
     async def place_order(self, order):
         """
-        Places an order.
+        Place an order.
         """
         order["command"] = "place-order"
         await self._send(order)
 
     async def stop_order(self, trigger, order):
         """
-        Stops an order.
+        Place an stop order.
         """
         message = {"command": "stop-order", "trigger": trigger, "order": order}
         await self._send(message)
 
+    async def get_historic_market_rates(self, instrument, resolution):
+        """
+        Get historic OHLC bars for a instrument and are returned 
+        in grouped buckets based on requested resolution.
+        """
+        endpoint = (
+            self.http_api + "/history/" + instrument + "/candles/" + resolution
+        )
+        async with self.session.get(endpoint) as output:
+            output = await output.json()
+        await self.session.close()
+        return output
+
+    async def get_historic_index_price_rates(self, instrument, resolution):
+        """
+        Get historic OHLC bars for an indexp price of an instrument
+        and are returned in grouped buckets based on requested resolution.
+        """
+        endpoint = (
+            self.http_api
+            + "/history/index-price/"
+            + instrument
+            + "/candles/"
+            + resolution
+        )
+        async with self.session.get(endpoint) as output:
+            output = await output.json()
+        await self.session.close()
+        return output
+
     async def connect(self, authentication=None):
         """
-        Connects to the webserver.
+        Connect to the websocket server.
         """
         if not authentication:
             self.socket = await websockets.connect(self.uri)
@@ -220,9 +258,8 @@ class Globe:
             }
             secret = authentication["secret"]
             sign_txt = headers["X-Access-Nonce"] + "GET/api/v1/ws"
-
-            headers["X-Access-Signature"] = str(_hash(sign_txt, secret), "utf-8")
-
+            headers["X-Access-Signature"] = str(
+                _hash(sign_txt, secret), "utf-8")
             self.socket = await websockets.connect(self.uri, extra_headers=headers)
             print("Connected to Globe Websocket.")
 

@@ -1,3 +1,4 @@
-websockets==8.1
-flake8==3.7.9
-pylint==2.4.4
+websockets == 8.1
+flake8 == 3.7.9
+pylint == 2.4.4
+aiohttp == 3.6.2

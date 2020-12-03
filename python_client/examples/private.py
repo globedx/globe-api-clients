@@ -22,7 +22,7 @@ async def test_logic():
     """
 
     await GLOBE.get_my_market_events(instrument="XBTUSD", handler=print_)
-    await GLOBE.my_open_orders(instrument="XBTUSD", handler=None)
+    await GLOBE.my_open_orders(instrument="XBTUSD", handler=print_)
     await GLOBE.get_my_account_overview()
     await GLOBE.my_positions()
     market = {
