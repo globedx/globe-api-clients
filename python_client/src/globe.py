@@ -37,7 +37,14 @@ class Globe:
             received = await self.socket.recv()
             received = json.loads(received)
             if "subscription" in received:
-                if received["subscription"]["channel"] in self.received_handlers:
+                if "instrument" in received["subscription"]:
+                    key = "{}{}".format(
+                        received["subscription"]["channel"], received["subscription"]["instrument"])
+                    if key in self.received_handlers:
+                        self.received_handlers[key](
+                            received
+                        )
+                elif received["subscription"]["channel"] in self.received_handlers:
                     self.received_handlers[received["subscription"]["channel"]](
                         received
                     )
@@ -53,8 +60,9 @@ class Globe:
         """
         Subscribe to the the market depth (l2 orderbook) with a given handler, for an instrument.
         """
-        if handler:
-            self.received_handlers["depth"] = handler
+        if handler is not None:
+            key = "depth{}".format(instrument)
+            self.received_handlers[key] = handler
         message = {"command": "subscribe",
                    "channel": "depth", "instrument": instrument}
         await self._send(message)
@@ -73,7 +81,8 @@ class Globe:
         Subscribe to the index price with a given handler, for an instrument.
         """
         if handler is not None:
-            self.received_handlers["index-price"] = handler
+            key = "index-price{}".format(instrument)
+            self.received_handlers[key] = handler
         message = {
             "command": "subscribe",
             "channel": "index-price",
@@ -85,8 +94,9 @@ class Globe:
         """
         Get the product detail with a given handler, for an instrument.
         """
-        if handler:
-            self.received_handlers["product-detail"] = handler
+        if handler is not None:
+            key = "product-detail{}".format(instrument)
+            self.received_handlers[key] = handler
         message = {
             "command": "subscribe",
             "channel": "product-detail",
@@ -98,8 +108,9 @@ class Globe:
         """
         Subscribe to recent trades with a given handler, for an instrument.
         """
-        if handler:
-            self.received_handlers["trades"] = handler
+        if handler is not None:
+            key = "trades{}".format(instrument)
+            self.received_handlers[key] = handler
         message = {
             "command": "subscribe",
             "channel": "trades",
@@ -111,8 +122,9 @@ class Globe:
         """
         Get the market overview with a given handler, for an instrument.
         """
-        if handler:
-            self.received_handlers["market-overview"] = handler
+        if handler is not None:
+            key = "market-overview{}".format(instrument)
+            self.received_handlers[key] = handler
         message = {
             "command": "subscribe",
             "channel": "market-overview",
@@ -124,8 +136,9 @@ class Globe:
         """
         Gets the open interest with a given handler, for an instrument.
         """
-        if handler:
-            self.received_handlers["open-interest"] = handler
+        if handler is not None:
+            key = "open-interest{}".format(instrument)
+            self.received_handlers[key] = handler
         message = {
             "command": "subscribe",
             "channel": "open-interest",
@@ -133,16 +146,15 @@ class Globe:
         }
         await self._send(message)
 
-    async def get_insurance_fund(self, instrument, handler=None):
+    async def get_insurance_fund(self, handler=None):
         """
         Get the insurance fund, with a given handler, for an instrument.
         """
-        if handler:
+        if handler is not None:
             self.received_handlers["insurance-fund"] = handler
         message = {
             "command": "subscribe",
             "channel": "insurance-fund",
-            "instrument": instrument,
         }
         await self._send(message)
 
@@ -159,8 +171,9 @@ class Globe:
         """
         Subscribe to your market events, with a given handler.
         """
-        if handler:
-            self.received_handlers["my-market-events"] = handler
+        if handler is not None:
+            key = "my-market-events{}".format(instrument)
+            self.received_handlers[key] = handler
         message = {
             "command": "subscribe",
             "channel": "my-market-events",
@@ -180,8 +193,9 @@ class Globe:
         """
         Get your open orders, with a given handler, for an instrument.
         """
-        if handler:
-            self.received_handlers["my-orders"] = handler
+        if handler is not None:
+            key = "my-orders{}".format(instrument)
+            self.received_handlers[key] = handler
         message = {
             "command": "subscribe",
             "channel": "my-orders",
@@ -214,7 +228,7 @@ class Globe:
 
     async def get_historic_market_rates(self, instrument, resolution):
         """
-        Get historic OHLC bars for a instrument and are returned 
+        Get historic OHLC bars for a instrument and are returned
         in grouped buckets based on requested resolution.
         """
         endpoint = (
