@@ -9,6 +9,8 @@ node_modules
 .vscode
 /tests.http
 *.pyc
+__pycache__
+.pytest_cache
 
 # macOS
 .DS_Store

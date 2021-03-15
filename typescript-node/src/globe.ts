@@ -32,8 +32,9 @@ export type Order = {
   instrument: string
   order_type: OrderType
   quantity: number
-  price: number
+  price?: number
   side: Side
+  order_id?: string
 }
 
 export const Channel = {
@@ -54,7 +55,7 @@ export const Channel = {
    * This channel does not require authentication.
    */
   indexPrice: (instrument: string) => {
-    return { instrument, channel: "depth" }
+    return { instrument, channel: "index-price" }
   },
 
   /**
@@ -106,6 +107,16 @@ export const Channel = {
    */
   marketOverview: (instrument: string) => {
     return { instrument, channel: "market-overview" }
+  },
+
+  /**
+   * Subscription message for the price history channel.
+   * Responses are objects containing candle metrics (high, low, open, close, time and volume)
+   *
+   * This channel does not require authentication.
+   */
+  priceHistory: (instrument: string, resolution: ResolutionType) => {
+    return { instrument, resolution, channel: "market-overview" }
   },
 
   /**
@@ -370,18 +381,24 @@ export class Globe {
   // Private methods (Requires authentication with an API key)
 
   placeOrder(order: Partial<Order>) {
-    // Will add type checking for limit & market orders here
     this.send({
       command: "place-order",
       ...order,
     })
   }
 
-  cancelOrder(instrument: string, order_id: number) {
+  cancelOrder(
+    instrument: string,
+    order_id: string,
+    cancel_id?: string,
+    new_quantity?: number,
+  ) {
     this.send({
       command: "cancel-order",
       instrument,
       order_id,
+      cancel_id,
+      new_quantity,
     })
   }
 
@@ -390,6 +407,20 @@ export class Globe {
       command: "stop-order",
       trigger,
       order,
+    })
+  }
+
+  cancelStopOrder(
+    trigger: number,
+    instrument: string,
+    order_id: string,
+    cancel_id?: string,
+  ) {
+    this.send({
+      command: "cancel-stop-order",
+      instrument,
+      order_id,
+      cancel_id,
     })
   }
 }

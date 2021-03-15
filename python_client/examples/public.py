@@ -29,6 +29,7 @@ async def test_logic():
     await GLOBE.get_market_overview(instrument="XBTUSD")
     await GLOBE.get_open_interest(instrument="XBTUSD")
     await GLOBE.get_insurance_fund()
+    await GLOBE.get_price_history(instrument="XBTUSD", resolution="1m")
     await GLOBE.get_historic_market_rates(instrument="XBTUSD", resolution="1m")
     await GLOBE.get_historic_index_price_rates(instrument="XBTUSD", resolution="1m")
 

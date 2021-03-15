@@ -23,6 +23,7 @@ async function main() {
   globe.subscribe(Channel.marketOverview(instrument), handle)
   globe.subscribe(Channel.openInterest(instrument), handle)
   globe.subscribe(Channel.insuranceFund(instrument), handle)
+  globe.subscribe(Channel.priceHistory(instrument, "1m"), handle)
 }
 
 ;(async () => {

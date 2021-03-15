@@ -9,6 +9,8 @@ import base64
 import websockets
 import aiohttp
 
+# pylint: disable=R0904
+
 
 class Globe:
     """
@@ -132,6 +134,21 @@ class Globe:
         }
         await self._send(message)
 
+    async def get_price_history(self, instrument, resolution="1m", handler=None):
+        """
+        Subscribe to the price history with a given handler, for an instrument and resolution.
+        """
+        if handler is not None:
+            key = "price-history{}".format(instrument)
+            self.received_handlers[key] = handler
+        message = {
+            "command": "subscribe",
+            "channel": "price-history",
+            "instrument": instrument,
+            "resolution": resolution,
+        }
+        await self._send(message)
+
     async def get_open_interest(self, instrument, handler=None):
         """
         Gets the open interest with a given handler, for an instrument.
@@ -181,11 +198,23 @@ class Globe:
         }
         await self._send(message)
 
-    async def cancel_order(self, _id, instrument):
+    async def cancel_order(self, _id, instrument, cancel_id=None, new_quantity=None):
         """
         Submit an order cancellation, with a given order id and instrument.
         """
         message = {"command": "cancel-order",
+                   "instrument": instrument, "order_id": _id}
+        if cancel_id:
+            message["cancel_id"] = cancel_id
+        if new_quantity:
+            message["new_quantity"] = new_quantity
+        await self._send(message)
+
+    async def cancel_stop_order(self, _id, instrument):
+        """
+        Submit an stop order cancellation, with a given order id and instrument.
+        """
+        message = {"command": "cancel-stop-order",
                    "instrument": instrument, "order_id": _id}
         await self._send(message)
 
