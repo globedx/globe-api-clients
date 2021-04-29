@@ -17,13 +17,14 @@ class Globe:
     Globe class contains all of Globes WebSocket WS channel subscriptions
     """
 
-    def __init__(self, error_handler=None):
+    def __init__(self, error_handler=None, authentication=None):
         self.uri = "wss://globedx.com/api/v1/ws"
         self.socket = websockets
         self.http_api = "http://www.globedx.com/api/v1"
         self.error_handler = error_handler
         self.received_handlers = {}
         self.session = aiohttp.ClientSession()
+        self.authentication = authentication
 
     async def _send(self, message):
         """
@@ -248,13 +249,6 @@ class Globe:
         order["command"] = "place-order"
         await self._send(order)
 
-    async def stop_order(self, trigger, order):
-        """
-        Place an stop order.
-        """
-        message = {"command": "stop-order", "trigger": trigger, "order": order}
-        await self._send(message)
-
     async def get_historic_market_rates(self, instrument, resolution):
         """
         Get historic OHLC bars for a instrument and are returned
@@ -265,6 +259,27 @@ class Globe:
         )
         async with self.session.get(endpoint) as output:
             output = await output.json()
+        await self.session.close()
+        return output
+
+    async def get_open_orders(self, instrument, upto_timestamp=None, page_size=100):
+        """
+        Get your current open orders for a product.
+        """
+        endpoint = (
+            self.http_api + "/orders/open-orders"
+        )
+        if not upto_timestamp:
+            upto_timestamp = int(datetime.now().timestamp() * 1000)
+
+        params = {
+            'instrument': instrument,
+            'upto_timestamp': upto_timestamp,
+            'page_size': page_size,
+        }
+        extra_headers = self.auth_headers(url="GET/api/v1/orders/open-orders")
+        async with self.session.get(endpoint, params=params, headers=extra_headers) as output:
+            output = await output.text()
         await self.session.close()
         return output
 
@@ -285,25 +300,35 @@ class Globe:
         await self.session.close()
         return output
 
-    async def connect(self, authentication=None):
+    def auth_headers(self, url):
+        """
+        Generate new authentication headers
+        """
+        if not self.authentication:
+            raise Exception("Authentication is required")
+        headers = {
+            "X-Access-Key": self.authentication["api-key"],
+            "X-Access-Signature": "",
+            "X-Access-Nonce": str(int(datetime.now().timestamp() * 1000)),
+            "X-Access-Passphrase": self.authentication["passphrase"],
+        }
+        secret = self.authentication["secret"]
+        sign_txt = headers["X-Access-Nonce"] + url
+        headers["X-Access-Signature"] = str(
+            _hash(sign_txt, secret), "utf-8")
+        return headers
+
+    async def connect(self):
         """
         Connect to the websocket server.
         """
-        if not authentication:
+        print(self.authentication)
+        if not self.authentication:
             self.socket = await websockets.connect(self.uri)
             print("Connected to Globe Websocket.")
-        if authentication:
-            headers = {
-                "X-Access-Key": authentication["api-key"],
-                "X-Access-Signature": "",
-                "X-Access-Nonce": str(int(datetime.now().strftime("%Y%m%d%H%M%S"))),
-                "X-Access-Passphrase": authentication["passphrase"],
-            }
-            secret = authentication["secret"]
-            sign_txt = headers["X-Access-Nonce"] + "GET/api/v1/ws"
-            headers["X-Access-Signature"] = str(
-                _hash(sign_txt, secret), "utf-8")
-            self.socket = await websockets.connect(self.uri, extra_headers=headers)
+        if self.authentication:
+            extra_headers = self.auth_headers(url="GET/api/v1/ws")
+            self.socket = await websockets.connect(self.uri, extra_headers=extra_headers)
             print("Connected to Globe Websocket.")
 
 

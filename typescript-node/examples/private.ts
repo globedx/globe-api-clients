@@ -13,6 +13,7 @@ const instrument = "XBTUSD"
 const handle = (response: any) => console.log(response)
 
 async function main() {
+  console.log("Starting ...")
   const globe = new Globe(errorHandler)
   await globe.connect({ credentials: CREDENTIALS })
   console.log("Authenticated worked and connected to websocket")
@@ -26,7 +27,7 @@ async function main() {
   // Place limit & market order
   const marketOrder = {
     instrument: "XBTUSD",
-    quantity: 250,
+    quantity: 1,
     order_type: OrderType.Market,
     side: Side.Sell,
   }
@@ -34,12 +35,31 @@ async function main() {
 
   const limitOrder = {
     instrument: "XBTUSD",
-    quantity: 250,
-    price: 9500.0,
+    quantity: 1,
+    price: 57000.0,
     order_type: OrderType.Limit,
-    side: Side.Buy,
+    side: Side.Sell,
   }
   globe.placeOrder(limitOrder)
+
+  const stopMarketOrder = {
+    instrument: "XBTUSD",
+    quantity: 1,
+    trigger_price: 56300.0,
+    order_type: OrderType.StopMarket,
+    side: Side.Buy,
+  }
+  globe.placeOrder(stopMarketOrder)
+
+  const stopLimitOrder = {
+    instrument: "XBTUSD",
+    quantity: 1,
+    price: 56400.0,
+    trigger_price: 56300.0,
+    order_type: OrderType.StopLimit,
+    side: Side.Buy,
+  }
+  globe.placeOrder(stopLimitOrder)
 }
 
 ;(async () => {

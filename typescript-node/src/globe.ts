@@ -26,6 +26,8 @@ export enum OrderType {
   Limit = "limit",
   PostOnly = "post_only",
   Market = "market",
+  StopMarket = "stop-market",
+  StopLimit = "stop-limit",
 }
 
 export type Order = {
@@ -399,14 +401,6 @@ export class Globe {
       order_id,
       cancel_id,
       new_quantity,
-    })
-  }
-
-  stopOrder(trigger: number, order: Order) {
-    this.send({
-      command: "stop-order",
-      trigger,
-      order,
     })
   }
 
