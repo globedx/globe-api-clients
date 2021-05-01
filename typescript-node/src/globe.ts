@@ -185,7 +185,6 @@ export type ApiCredentials = {
 
 type Fields = { [key: string]: any }
 type ReceiveHandler = (event: Websocket.Data) => void
-type ConnectionOptions = { credentials?: ApiCredentials }
 type Message = { path: string; method: string; body: string }
 type ErrorHandler = (event: Websocket.Data) => void
 
@@ -248,20 +247,22 @@ export class Globe {
   private httpApi: string
   private connectionTimeout: number
   private receiveHandlers: Record<string, ReceiveHandler> = {}
+  private credentials?: ApiCredentials
 
-  constructor(error: ErrorHandler) {
+  constructor(error: ErrorHandler, credentials?: ApiCredentials) {
     this.error = error
     this.path = "/api/v1/ws"
     this.host = "wss://globedx.com"
     this.httpApi = "http://www.globedx.com/api/v1"
     this.connectionTimeout = 30000
+    this.credentials = credentials
   }
 
-  async connect(options?: ConnectionOptions): Promise<Globe> {
+  async connect(): Promise<Globe> {
     const path = this.path
     const headers =
-      options?.credentials &&
-      authHeaders({ path, method: "GET", body: "" }, options.credentials)
+      this.credentials &&
+      authHeaders({ path, method: "GET", body: "" }, this.credentials)
     this.ws = new Websocket(this.host + this.path, { headers })
 
     this.ws.onmessage = (message) => {
@@ -381,6 +382,49 @@ export class Globe {
   }
 
   // Private methods (Requires authentication with an API key)
+
+  async getOpenOrders(
+    instrument: string,
+    upto_timestamp?: number,
+    page_size = 100,
+  ): Promise<any> {
+    if (!this.credentials) {
+      throw new Error("Please provide authentication credentials")
+    }
+    const path = "/api/v1/orders/open-orders"
+    const headers = authHeaders(
+      { path, method: "GET", body: "" },
+      this.credentials,
+    )
+    if (!upto_timestamp) {
+      upto_timestamp = new Date().getTime()
+    }
+    const endpoint =
+      this.httpApi +
+      `/orders/open-orders?instrument=${instrument}&upto_timestamp=${upto_timestamp}&page_size=${page_size}`
+    return fetch(endpoint, { headers })
+      .then((res) => res.text())
+      .then((text) => JSON.parse(text))
+  }
+
+  async getMyTrades(instrument: string, page?: number): Promise<any> {
+    if (!this.credentials) {
+      throw new Error("Please provide authentication credentials")
+    }
+    const path = "/api/v1/history/my-trades"
+    const headers = authHeaders(
+      { path, method: "GET", body: "" },
+      this.credentials,
+    )
+    if (!page) {
+      page = 0
+    }
+    const endpoint =
+      this.httpApi + `/history/my-trades?instrument=${instrument}&page=${page}`
+    return fetch(endpoint, { headers })
+      .then((res) => res.text())
+      .then((text) => JSON.parse(text))
+  }
 
   placeOrder(order: Partial<Order>) {
     this.send({

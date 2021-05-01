@@ -57,6 +57,7 @@ async def test_logic():
     }
     await GLOBE.place_order(stop_limit)
     print(await GLOBE.get_open_orders(instrument="XBTUSD"))
+    print(await GLOBE.get_my_trades(instrument="XBTUSD"))
 
 
 async def main(logic):
