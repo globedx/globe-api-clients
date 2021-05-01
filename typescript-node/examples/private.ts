@@ -14,8 +14,8 @@ const handle = (response: any) => console.log(response)
 
 async function main() {
   console.log("Starting ...")
-  const globe = new Globe(errorHandler)
-  await globe.connect({ credentials: CREDENTIALS })
+  const globe = new Globe(errorHandler, CREDENTIALS)
+  await globe.connect()
   console.log("Authenticated worked and connected to websocket")
 
   // Subscribe to private channels
@@ -23,6 +23,9 @@ async function main() {
   globe.subscribe(Channel.myOpenOrders(instrument), handle)
   globe.subscribe(Channel.myAccountOverview(), handle)
   globe.subscribe(Channel.myPositions(), handle)
+
+  console.log(await globe.getOpenOrders(instrument))
+  console.log(await globe.getMyTrades(instrument))
 
   // Place limit & market order
   const marketOrder = {

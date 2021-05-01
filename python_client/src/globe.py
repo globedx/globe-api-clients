@@ -42,15 +42,15 @@ class Globe:
             if "subscription" in received:
                 if "instrument" in received["subscription"]:
                     key = "{}{}".format(
-                        received["subscription"]["channel"], received["subscription"]["instrument"])
+                        received["subscription"]["channel"],
+                        received["subscription"]["instrument"])
                     if key in self.received_handlers:
                         self.received_handlers[key](
                             received
                         )
                 elif received["subscription"]["channel"] in self.received_handlers:
                     self.received_handlers[received["subscription"]["channel"]](
-                        received
-                    )
+                        received)
                 else:
                     print(received)
             else:
@@ -283,6 +283,26 @@ class Globe:
         await self.session.close()
         return output
 
+    async def get_my_trades(self, instrument, page=None):
+        """
+        Get your current my previous trades for a product.
+        """
+        endpoint = (
+            self.http_api + "/history/my-trades"
+        )
+        if not page:
+            page = 0
+
+        params = {
+            'instrument': instrument,
+            'page': page,
+        }
+        extra_headers = self.auth_headers(url="GET/api/v1/history/my-trades")
+        async with self.session.get(endpoint, params=params, headers=extra_headers) as output:
+            output = await output.text()
+        await self.session.close()
+        return output
+
     async def get_historic_index_price_rates(self, instrument, resolution):
         """
         Get historic OHLC bars for an indexp price of an instrument
@@ -322,7 +342,6 @@ class Globe:
         """
         Connect to the websocket server.
         """
-        print(self.authentication)
         if not self.authentication:
             self.socket = await websockets.connect(self.uri)
             print("Connected to Globe Websocket.")
