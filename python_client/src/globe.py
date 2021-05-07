@@ -2,7 +2,7 @@
 globe.py holds the key methods for the WebSocket API.
 """
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 import hmac
 import hashlib
 import base64
@@ -45,11 +45,11 @@ class Globe:
                         received["subscription"]["channel"],
                         received["subscription"]["instrument"])
                     if key in self.received_handlers:
-                        self.received_handlers[key](
+                        await self.received_handlers[key](
                             received
                         )
                 elif received["subscription"]["channel"] in self.received_handlers:
-                    self.received_handlers[received["subscription"]["channel"]](
+                    await self.received_handlers[received["subscription"]["channel"]](
                         received)
                 else:
                     print(received)
@@ -259,7 +259,6 @@ class Globe:
         )
         async with self.session.get(endpoint) as output:
             output = await output.json()
-        await self.session.close()
         return output
 
     async def get_open_orders(self, instrument, upto_timestamp=None, page_size=100):
@@ -280,7 +279,6 @@ class Globe:
         extra_headers = self.auth_headers(url="GET/api/v1/orders/open-orders")
         async with self.session.get(endpoint, params=params, headers=extra_headers) as output:
             output = await output.text()
-        await self.session.close()
         return output
 
     async def get_my_trades(self, instrument, page=None):
@@ -300,7 +298,6 @@ class Globe:
         extra_headers = self.auth_headers(url="GET/api/v1/history/my-trades")
         async with self.session.get(endpoint, params=params, headers=extra_headers) as output:
             output = await output.text()
-        await self.session.close()
         return output
 
     async def get_historic_index_price_rates(self, instrument, resolution):
@@ -317,7 +314,6 @@ class Globe:
         )
         async with self.session.get(endpoint) as output:
             output = await output.json()
-        await self.session.close()
         return output
 
     def auth_headers(self, url):
@@ -329,7 +325,7 @@ class Globe:
         headers = {
             "X-Access-Key": self.authentication["api-key"],
             "X-Access-Signature": "",
-            "X-Access-Nonce": str(int(datetime.now().timestamp() * 1000)),
+            "X-Access-Nonce": str(int(datetime.now(timezone.utc).timestamp() * 1000)),
             "X-Access-Passphrase": self.authentication["passphrase"],
         }
         secret = self.authentication["secret"]

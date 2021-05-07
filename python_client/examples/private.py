@@ -9,11 +9,12 @@ sys.path.append("python_client/")
 sys.path.append("")
 
 
-def print_(string):
+async def print_(string):
     """
     A Handler - can be defined by user.
     """
     print(string)
+    asyncio.sleep(0.0001)
 
 
 async def test_logic():

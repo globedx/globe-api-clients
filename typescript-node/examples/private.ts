@@ -29,7 +29,7 @@ async function main() {
 
   // Place limit & market order
   const marketOrder = {
-    instrument: "XBTUSD",
+    instrument,
     quantity: 1,
     order_type: OrderType.Market,
     side: Side.Sell,
@@ -37,7 +37,7 @@ async function main() {
   globe.placeOrder(marketOrder)
 
   const limitOrder = {
-    instrument: "XBTUSD",
+    instrument,
     quantity: 1,
     price: 57000.0,
     order_type: OrderType.Limit,
@@ -46,7 +46,7 @@ async function main() {
   globe.placeOrder(limitOrder)
 
   const stopMarketOrder = {
-    instrument: "XBTUSD",
+    instrument,
     quantity: 1,
     trigger_price: 56300.0,
     order_type: OrderType.StopMarket,
@@ -55,7 +55,7 @@ async function main() {
   globe.placeOrder(stopMarketOrder)
 
   const stopLimitOrder = {
-    instrument: "XBTUSD",
+    instrument,
     quantity: 1,
     price: 56400.0,
     trigger_price: 56300.0,
