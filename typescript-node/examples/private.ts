@@ -1,68 +1,85 @@
-import { Globe, OrderType, Side, ApiCredentials, Channel } from "../src/globe"
+import {
+  Globe,
+  OrderType,
+  Side,
+  ApiCredentials,
+  Channel,
+  OpenOrder,
+  OrderExecutionType,
+} from "../src/globe"
 
 const errorHandler = (err: any) => console.log(err)
 
-// Please add your own credentials
-const CREDENTIALS: ApiCredentials = {
+// Add your own credentials
+const credentials: ApiCredentials = {
   apiKey: "",
   secret: "",
   passphrase: "",
 }
 
 const instrument = "XBTUSD"
-const handle = (response: any) => console.log(response)
 
 async function main() {
-  console.log("Starting ...")
-  const globe = new Globe(errorHandler, CREDENTIALS)
+  console.log("Starting...")
+  const globe = new Globe(errorHandler, { credentials })
   await globe.connect()
-  console.log("Authenticated worked and connected to websocket")
+  console.log("Connected")
 
-  // Subscribe to private channels
-  globe.subscribe(Channel.myMarketEvents(instrument), handle)
-  globe.subscribe(Channel.myOpenOrders(instrument), handle)
-  globe.subscribe(Channel.myAccountOverview(), handle)
-  globe.subscribe(Channel.myPositions(), handle)
+  // track orders in a map as they are created and removed
+  const orders: Map<string, OpenOrder> = new Map()
 
-  console.log(await globe.getOpenOrders(instrument))
-  console.log(await globe.getMyTrades(instrument))
+  globe.subscribe(Channel.myMarketEvents(instrument), (response: any) => {
+    console.log(response)
+    if (response.data.event === "order-cancelled") {
+      orders.delete(response.data.order_id)
+    } else if (response.data.event === "rejected") {
+      orders.delete(response.data.request_id)
+    }
+  })
 
-  // Place limit & market order
-  const marketOrder = {
-    instrument,
-    quantity: 1,
-    order_type: OrderType.Market,
-    side: Side.Sell,
+  globe.subscribe(Channel.myOpenOrders(instrument), console.log)
+  globe.subscribe(Channel.myAccountOverview(), console.log)
+
+  // wait for the first index price message
+  const index: number = await new Promise((resolve) => {
+    globe.subscribe(Channel.indexPrice(instrument), (response: any) => {
+      globe.unsubscribe(Channel.indexPrice(instrument))
+      resolve(response.data.price)
+    })
+  })
+
+  // add any orders that are from previous sessions
+  const openOrdersResult = await globe.getOpenOrders(instrument)
+  openOrdersResult.forEach((order: OpenOrder) => {
+    orders.set(order.order_id, order)
+  })
+
+  // place some new orders
+  for (let i = 0; i < 5; i++) {
+    const order = {
+      instrument,
+      quantity: 1000,
+      price: Math.round(index) - 10 + i,
+      order_type: OrderType.Limit,
+      side: Side.Buy,
+    }
+    const order_id = globe.placeOrder(order)
+    const timestamp = new Date().getTime()
+    // keep track of orders we have placed
+    orders.set(order_id, {
+      type: OrderExecutionType.Order,
+      filled_quantity: 0,
+      order_id,
+      timestamp,
+      ...order,
+    })
   }
-  globe.placeOrder(marketOrder)
 
-  const limitOrder = {
-    instrument,
-    quantity: 1,
-    price: 57000.0,
-    order_type: OrderType.Limit,
-    side: Side.Sell,
-  }
-  globe.placeOrder(limitOrder)
-
-  const stopMarketOrder = {
-    instrument,
-    quantity: 1,
-    trigger_price: 56300.0,
-    order_type: OrderType.StopMarket,
-    side: Side.Buy,
-  }
-  globe.placeOrder(stopMarketOrder)
-
-  const stopLimitOrder = {
-    instrument,
-    quantity: 1,
-    price: 56400.0,
-    trigger_price: 56300.0,
-    order_type: OrderType.StopLimit,
-    side: Side.Buy,
-  }
-  globe.placeOrder(stopLimitOrder)
+  // cancel all of our orders
+  orders.forEach((order, order_id) => {
+    globe.cancelOrder({ instrument, order_id })
+    orders.delete(order_id)
+  })
 }
 
 ;(async () => {

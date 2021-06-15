@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import hmac
 import hashlib
 import base64
+from uuid import uuid4
 import websockets
 import aiohttp
 
@@ -199,7 +200,7 @@ class Globe:
         }
         await self._send(message)
 
-    async def cancel_order(self, _id, instrument, cancel_id=None, new_quantity=None):
+    async def cancel_order(self, _id, instrument, cancel_id=None, new_quantity=None) -> str:
         """
         Submit an order cancellation, with a given order id and instrument.
         """
@@ -207,17 +208,25 @@ class Globe:
                    "instrument": instrument, "order_id": _id}
         if cancel_id:
             message["cancel_id"] = cancel_id
+        else:
+            message["cancel_id"] = str(uuid4())
         if new_quantity:
             message["new_quantity"] = new_quantity
         await self._send(message)
+        return message["cancel_id"]
 
-    async def cancel_stop_order(self, _id, instrument):
+    async def cancel_stop_order(self, _id, instrument, cancel_id=None) -> str:
         """
         Submit an stop order cancellation, with a given order id and instrument.
         """
         message = {"command": "cancel-stop-order",
                    "instrument": instrument, "order_id": _id}
+        if cancel_id:
+            message["cancel_id"] = cancel_id
+        else:
+            message["cancel_id"] = str(uuid4())
         await self._send(message)
+        return message["cancel_id"]
 
     async def my_open_orders(self, instrument, handler=None):
         """
@@ -242,12 +251,15 @@ class Globe:
         message = {"command": "subscribe", "channel": "my-positions"}
         await self._send(message)
 
-    async def place_order(self, order):
+    async def place_order(self, order) -> str:
         """
         Place an order.
         """
+        if 'order_id' not in order:
+            order['order_id'] = str(uuid4())
         order["command"] = "place-order"
         await self._send(order)
+        return order['order_id']
 
     async def get_historic_market_rates(self, instrument, resolution):
         """
@@ -279,6 +291,32 @@ class Globe:
         extra_headers = self.auth_headers(url="GET/api/v1/orders/open-orders")
         async with self.session.get(endpoint, params=params, headers=extra_headers) as output:
             output = await output.text()
+        return output
+
+    async def get_positions(self):
+        """
+        Get your current positions for instruments.
+        """
+        endpoint = (
+            self.http_api + "/positions"
+        )
+
+        extra_headers = self.auth_headers(url="GET/api/v1/positions")
+        async with self.session.get(endpoint, headers=extra_headers) as output:
+            output = await output.json()
+        return output
+
+    async def get_account_overview(self):
+        """
+        Get your current account overview.
+        """
+        endpoint = (
+            self.http_api + "/account-overview"
+        )
+
+        extra_headers = self.auth_headers(url="GET/api/v1/account-overview")
+        async with self.session.get(endpoint, headers=extra_headers) as output:
+            output = await output.json()
         return output
 
     async def get_my_trades(self, instrument, page=None):

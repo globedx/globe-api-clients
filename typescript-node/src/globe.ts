@@ -1,6 +1,7 @@
 import Websocket from "ws"
 import crypto from "crypto"
 import fetch from "node-fetch"
+import { v4 as uuidv4 } from "uuid"
 
 export enum Side {
   Buy = "buy",
@@ -24,10 +25,26 @@ export type ResolutionType =
 
 export enum OrderType {
   Limit = "limit",
-  PostOnly = "post_only",
+  PostOnly = "post-only",
   Market = "market",
-  StopMarket = "stop-market",
-  StopLimit = "stop-limit",
+}
+
+export enum OrderExecutionType {
+  Stop = "stop",
+  Order = "order",
+}
+
+type RequestId = string
+
+export type OpenOrder = {
+  type: OrderExecutionType
+  filled_quantity: number
+  order_id: RequestId
+  order_type: OrderType
+  price: number
+  quantity: number
+  side: Side
+  timestamp: number
 }
 
 export type Order = {
@@ -36,7 +53,25 @@ export type Order = {
   quantity: number
   price?: number
   side: Side
-  order_id?: string
+  order_id?: RequestId
+}
+
+export type StopOrder = Order & {
+  trigger_price: number
+}
+
+export type CancelOrder = {
+  instrument: string
+  order_id: RequestId
+  cancel_id?: RequestId
+  new_quantity?: number
+}
+
+export type reduceQuantity = {
+  instrument: string
+  order_id: RequestId
+  cancel_id?: RequestId
+  new_quantity: number
 }
 
 export const Channel = {
@@ -183,6 +218,13 @@ export type ApiCredentials = {
   passphrase: string
 }
 
+export type GlobeInit = {
+  credentials?: ApiCredentials
+  host?: string
+  ssl?: boolean
+  connectionTimeout?: number
+}
+
 type Fields = { [key: string]: any }
 type ReceiveHandler = (event: Websocket.Data) => void
 type Message = { path: string; method: string; body: string }
@@ -249,13 +291,16 @@ export class Globe {
   private receiveHandlers: Record<string, ReceiveHandler> = {}
   private credentials?: ApiCredentials
 
-  constructor(error: ErrorHandler, credentials?: ApiCredentials) {
+  constructor(error: ErrorHandler, init?: GlobeInit) {
+    const host = init?.host || "globedx.com"
+    const ssl = init?.ssl === undefined ? true : init?.ssl
+    const secure = ssl ? "s" : ""
     this.error = error
     this.path = "/api/v1/ws"
-    this.host = "wss://globedx.com"
-    this.httpApi = "http://www.globedx.com/api/v1"
-    this.connectionTimeout = 30000
-    this.credentials = credentials
+    this.host = `ws${secure}://${host}`
+    this.httpApi = `http${secure}://${host}/api/v1`
+    this.connectionTimeout = init?.connectionTimeout || 30000
+    this.credentials = init?.credentials
   }
 
   async connect(): Promise<Globe> {
@@ -336,11 +381,10 @@ export class Globe {
     }
   }
 
-  unsubscribe(channel: string, subscription?: Fields) {
+  unsubscribe(details: { instrument?: string; channel: string }) {
     this.send({
       command: "unsubscribe",
-      channel,
-      ...subscription,
+      ...details,
     })
 
     // Need to remove the handle here as well
@@ -387,7 +431,7 @@ export class Globe {
     instrument: string,
     upto_timestamp?: number,
     page_size = 100,
-  ): Promise<any> {
+  ): Promise<OpenOrder[]> {
     if (!this.credentials) {
       throw new Error("Please provide authentication credentials")
     }
@@ -402,6 +446,36 @@ export class Globe {
     const endpoint =
       this.httpApi +
       `/orders/open-orders?instrument=${instrument}&upto_timestamp=${upto_timestamp}&page_size=${page_size}`
+    return fetch(endpoint, { headers })
+      .then((res) => res.text())
+      .then((text) => JSON.parse(text))
+  }
+
+  async getPositions(): Promise<any> {
+    if (!this.credentials) {
+      throw new Error("Please provide authentication credentials")
+    }
+    const path = "/api/v1/positions"
+    const headers = authHeaders(
+      { path, method: "GET", body: "" },
+      this.credentials,
+    )
+    const endpoint = this.httpApi + `/positions`
+    return fetch(endpoint, { headers })
+      .then((res) => res.text())
+      .then((text) => JSON.parse(text))
+  }
+
+  async getAccountOverview(): Promise<any> {
+    if (!this.credentials) {
+      throw new Error("Please provide authentication credentials")
+    }
+    const path = "/api/v1/account-overview"
+    const headers = authHeaders(
+      { path, method: "GET", body: "" },
+      this.credentials,
+    )
+    const endpoint = this.httpApi + `/account-overview`
     return fetch(endpoint, { headers })
       .then((res) => res.text())
       .then((text) => JSON.parse(text))
@@ -426,39 +500,43 @@ export class Globe {
       .then((text) => JSON.parse(text))
   }
 
-  placeOrder(order: Partial<Order>) {
+  placeOrder(order: Order): RequestId {
+    const order_id = order.order_id || uuidv4()
     this.send({
       command: "place-order",
       ...order,
+      order_id,
     })
+    return order_id
   }
 
-  cancelOrder(
-    instrument: string,
-    order_id: string,
-    cancel_id?: string,
-    new_quantity?: number,
-  ) {
+  cancelOrder(cancel: CancelOrder): RequestId {
+    const cancel_id = cancel.cancel_id || uuidv4()
     this.send({
       command: "cancel-order",
-      instrument,
-      order_id,
+      ...cancel,
       cancel_id,
-      new_quantity,
     })
+    return cancel_id
   }
 
-  cancelStopOrder(
-    trigger: number,
-    instrument: string,
-    order_id: string,
-    cancel_id?: string,
-  ) {
+  placeStopOrder(order: StopOrder): RequestId {
+    const order_id = order.order_id || uuidv4()
+    this.send({
+      command: "place-order",
+      ...order,
+      order_id,
+    })
+    return order_id
+  }
+
+  cancelStopOrder(cancel: CancelOrder): RequestId {
+    const cancel_id = cancel.cancel_id || uuidv4()
     this.send({
       command: "cancel-stop-order",
-      instrument,
-      order_id,
+      ...cancel,
       cancel_id,
     })
+    return cancel_id
   }
 }

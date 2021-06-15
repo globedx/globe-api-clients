@@ -39,7 +39,7 @@ async def test_logic():
         "price": 57000,
         "side": "sell",
     }
-    await GLOBE.place_order(limit)
+    order_id = await GLOBE.place_order(limit)
     stop_market = {
         "instrument": "XBTUSD",
         "quantity": 1,
@@ -57,8 +57,12 @@ async def test_logic():
         "side": "buy",
     }
     await GLOBE.place_order(stop_limit)
+    cancel_id = await GLOBE.cancel_order(order_id, "XBTUSD")
+    print(cancel_id)
     print(await GLOBE.get_open_orders(instrument="XBTUSD"))
     print(await GLOBE.get_my_trades(instrument="XBTUSD"))
+    print(await GLOBE.get_positions())
+    print(await GLOBE.get_account_overview())
 
 
 async def main(logic):
